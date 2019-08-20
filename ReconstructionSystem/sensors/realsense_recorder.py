@@ -126,49 +126,63 @@ if __name__ == "__main__":
         config_1.enable_device_from_file(path_bag, repeat_playback = True)
         config_2.enable_device_from_file(path_bag, repeat_playback = True)
         config_3.enable_device_from_file(path_bag, repeat_playback = True)
-
+    
 
     pipelinesWithConfigs = [
         {
             "pipeline" : pipeline_1,
-            "config" : config_1
+            "config" : config_1,
+            "initiated" : False,
+            "clipping_distance" : None
         },
         {
             "pipeline" : pipeline_2,
-            "config" : config_2
+            "config" : config_2,
+            "initiated" : False,
+            "clipping_distance" : None
         },
         {
             "pipeline" : pipeline_3,
-            "config" : config_3
+            "config" : config_3,
+            "initiated" : False,
+            "clipping_distance" : None
         }
     ]
 
     # Start streaming
     frame_count = 0
     try:
-       # Streaming loop
+
         while True:
             
             for obj in pipelinesWithConfigs :
-                
+
                 pipeline = obj["pipeline"]
                 config = obj["config"]
+                initiated = obj["initiated"]
+                clipping_distnace = None
+
+                if(not initiated){
+
+                    profile = pipeline.start(config)
+                    depth_sensor = profile.get_device().first_depth_sensor()
+
+                    # Using preset HighAccuracy for recording
+                    if args.record_rosbag or args.record_imgs:
+                        depth_sensor.set_option(rs.option.visual_preset, Preset.HighAccuracy)
+
+                    # Getting the depth sensor's depth scale (see rs-align example for explanation)
+                    depth_scale = depth_sensor.get_depth_scale()
+
+                    # We will not display the background of objects more than
+                    #  clipping_distance_in_meters meters away
+                    clipping_distance_in_meters = 3 # 3 meter
+                    clipping_distance = clipping_distance_in_meters / depth_scale
+
+                    obj["initiated"] = True
+                    obj["clipping_distance"] = clipping_distance
+                }
                 
-                profile = pipeline.start(config)
-                depth_sensor = profile.get_device().first_depth_sensor()
-
-                # Using preset HighAccuracy for recording
-                if args.record_rosbag or args.record_imgs:
-                    depth_sensor.set_option(rs.option.visual_preset, Preset.HighAccuracy)
-
-                # Getting the depth sensor's depth scale (see rs-align example for explanation)
-                depth_scale = depth_sensor.get_depth_scale()
-
-                # We will not display the background of objects more than
-                #  clipping_distance_in_meters meters away
-                clipping_distance_in_meters = 3 # 3 meter
-                clipping_distance = clipping_distance_in_meters / depth_scale
-
                 # Create an align object
                 # rs.align allows us to perform alignment of depth frames to others frames
                 # The "align_to" is the stream type to which we plan to align depth frames.
@@ -208,7 +222,7 @@ if __name__ == "__main__":
                 grey_color = 153
                 #depth image is 1 channel, color is 3 channels
                 depth_image_3d = np.dstack((depth_image,depth_image,depth_image))
-                bg_removed = np.where((depth_image_3d > clipping_distance) | \
+                bg_removed = np.where((depth_image_3d > clipping_distance or obj['clipping_distance']) | \
                         (depth_image_3d <= 0), grey_color, color_image)
 
                 # Render images
@@ -225,4 +239,5 @@ if __name__ == "__main__":
                     cv2.destroyAllWindows()
                     break
     finally:
-        pipeline.stop()
+        for obj in pipelinesWithConfigs :
+            pipeline.stop()
