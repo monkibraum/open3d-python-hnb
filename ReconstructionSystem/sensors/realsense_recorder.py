@@ -93,14 +93,14 @@ if __name__ == "__main__":
 
     pipeline_1 = rs.pipeline()
     pipeline_2 = rs.pipeline()
-    pipeline_3 = rs.pipeline()
+    #pipeline_3 = rs.pipeline()
 
     #Create a config and configure the pipeline to stream
     #  different resolutions of color and depth streams
 
     config_1 = rs.config()
     config_2 = rs.config()
-    config_3 = rs.config()
+    #config_3 = rs.config()
 
     if args.record_imgs or args.record_rosbag:
         # note: using 640 x 480 depth resolution produces smooth depth boundaries
@@ -114,18 +114,18 @@ if __name__ == "__main__":
         config_2.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
         config_2.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
-        config_3.enable_device(DEVICE_SERIAL_3)
-        config_3.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        config_3.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+        #config_3.enable_device(DEVICE_SERIAL_3)
+        #config_3.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        #config_3.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
         if args.record_rosbag:
             config_1.enable_record_to_file(path_bag)
             config_2.enable_record_to_file(path_bag)
-            config_3.enable_record_to_file(path_bag)
+            #config_3.enable_record_to_file(path_bag)
     if args.playback_rosbag:
         config_1.enable_device_from_file(path_bag, repeat_playback = True)
         config_2.enable_device_from_file(path_bag, repeat_playback = True)
-        config_3.enable_device_from_file(path_bag, repeat_playback = True)
+        #config_3.enable_device_from_file(path_bag, repeat_playback = True)
     
 
     pipelinesWithConfigs = [
@@ -141,19 +141,21 @@ if __name__ == "__main__":
             "initiated" : False,
             "clipping_distance" : None
         },
-        {
-            "pipeline" : pipeline_3,
-            "config" : config_3,
-            "initiated" : False,
-            "clipping_distance" : None
-        }
+        #{
+        #   "pipeline" : pipeline_3,
+        #    "config" : config_3,
+        #    "initiated" : False,
+        #    "clipping_distance" : None
+        #}
     ]
 
     # Start streaming
     frame_count = 0
+    current_cycle = 0
+    TOTAL_CYCLE_COUNT = 1
     try:
 
-        while True:
+        while current_cycle in range(0, TOTAL_CYCLE_COUNT):
             
             for obj in pipelinesWithConfigs :
 
@@ -161,8 +163,9 @@ if __name__ == "__main__":
                 config = obj["config"]
                 initiated = obj["initiated"]
                 clipping_distnace = None
+                
 
-                if(not initiated){
+                if not initiated :
 
                     profile = pipeline.start(config)
                     depth_sensor = profile.get_device().first_depth_sensor()
@@ -181,7 +184,7 @@ if __name__ == "__main__":
 
                     obj["initiated"] = True
                     obj["clipping_distance"] = clipping_distance
-                }
+                
                 
                 # Create an align object
                 # rs.align allows us to perform alignment of depth frames to others frames
@@ -222,7 +225,7 @@ if __name__ == "__main__":
                 grey_color = 153
                 #depth image is 1 channel, color is 3 channels
                 depth_image_3d = np.dstack((depth_image,depth_image,depth_image))
-                bg_removed = np.where((depth_image_3d > clipping_distance or obj['clipping_distance']) | \
+                bg_removed = np.where((depth_image_3d > ( clipping_distance or obj['clipping_distance'] )) | \
                         (depth_image_3d <= 0), grey_color, color_image)
 
                 # Render images
@@ -235,9 +238,13 @@ if __name__ == "__main__":
                 key = cv2.waitKey(1)
 
                 # if 'esc' button pressed, escape loop and exit program
+
+                current_cycle = current_cycle + 1
+
                 if key == 27:
                     cv2.destroyAllWindows()
                     break
     finally:
         for obj in pipelinesWithConfigs :
+            pipeline = obj["pipeline"]
             pipeline.stop()
