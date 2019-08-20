@@ -144,38 +144,38 @@ if __name__ == "__main__":
     ]
 
     # Start streaming
-    
     frame_count = 0
-    for obj in pipelinesWithConfigs :
-        
-        pipeline = obj["pipeline"]
-        config = obj["config"]
-        
-        profile = pipeline.start(config)
-        depth_sensor = profile.get_device().first_depth_sensor()
+    try:
+       # Streaming loop
+        while True:
+            
+            for obj in pipelinesWithConfigs :
+                
+                pipeline = obj["pipeline"]
+                config = obj["config"]
+                
+                profile = pipeline.start(config)
+                depth_sensor = profile.get_device().first_depth_sensor()
 
-        # Using preset HighAccuracy for recording
-        if args.record_rosbag or args.record_imgs:
-            depth_sensor.set_option(rs.option.visual_preset, Preset.HighAccuracy)
+                # Using preset HighAccuracy for recording
+                if args.record_rosbag or args.record_imgs:
+                    depth_sensor.set_option(rs.option.visual_preset, Preset.HighAccuracy)
 
-        # Getting the depth sensor's depth scale (see rs-align example for explanation)
-        depth_scale = depth_sensor.get_depth_scale()
+                # Getting the depth sensor's depth scale (see rs-align example for explanation)
+                depth_scale = depth_sensor.get_depth_scale()
 
-        # We will not display the background of objects more than
-        #  clipping_distance_in_meters meters away
-        clipping_distance_in_meters = 3 # 3 meter
-        clipping_distance = clipping_distance_in_meters / depth_scale
+                # We will not display the background of objects more than
+                #  clipping_distance_in_meters meters away
+                clipping_distance_in_meters = 3 # 3 meter
+                clipping_distance = clipping_distance_in_meters / depth_scale
 
-        # Create an align object
-        # rs.align allows us to perform alignment of depth frames to others frames
-        # The "align_to" is the stream type to which we plan to align depth frames.
-        align_to = rs.stream.color
-        align = rs.align(align_to)
+                # Create an align object
+                # rs.align allows us to perform alignment of depth frames to others frames
+                # The "align_to" is the stream type to which we plan to align depth frames.
+                align_to = rs.stream.color
+                align = rs.align(align_to)
 
-        # Streaming loop
-       
-        try:
-            while True:
+            
                 # Get frameset of color and depth
                 frames = pipeline.wait_for_frames()
 
@@ -224,5 +224,5 @@ if __name__ == "__main__":
                 if key == 27:
                     cv2.destroyAllWindows()
                     break
-        finally:
-            pipeline.stop()
+    finally:
+        pipeline.stop()
